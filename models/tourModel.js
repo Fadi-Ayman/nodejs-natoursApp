@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const slugify = require('slugify')
+const validator = require('validator');
 
 //(1) Create mongo schema
 const tourSchema = new mongoose.Schema(
@@ -11,6 +11,7 @@ const tourSchema = new mongoose.Schema(
       trim: true,
       maxlength: [40, 'A tour name must have less or equal than 40 characters'],
       minlength: [4, 'A tour name must have more or equal than 4 characters'],
+      validate : [validator.isAlpha, 'Tour name must only contain characters']
     },
     rating: {
       type: Number,
@@ -52,7 +53,14 @@ const tourSchema = new mongoose.Schema(
       default: 0
     },
     priceDiscount: {
-      type: Number
+      type: Number,
+      validate: {
+        // this only points to the current document on NEW document creation 
+        validator: function(value) {
+          return value < this.price;
+        },
+        message: 'Discount price ({VALUE}) should be below regular price'
+      }
     },
     summary: {
       type: String,
@@ -74,7 +82,8 @@ const tourSchema = new mongoose.Schema(
       select: false // that make this not return in the response, need for sestive data like passwords
     },
     startDates: [Date],
-    slug: String
+    secretTour: {type: Boolean,default: false} // for test query middleware and aggregation middleware
+    // slug: String, // for test document middleware
   },
   // to include virtual properties in the output of the response
   {
@@ -83,20 +92,46 @@ const tourSchema = new mongoose.Schema(
   }
 );
 
-// virtual properties (not persisted in db but calculated on the fly), we (cannot use) this virtual propery in query because it is not a part of the document
+//^ virtual properties (not persisted in db but calculated on the fly), we (cannot use) this virtual propery in query because it is not a part of the document
 tourSchema.virtual('durationWeeks').get(function() {
   return Number((this.duration / 7).toFixed(2)) || 0
 });
 
-//^ Document Middleware (pre,post): runs before .save() and .create() only...
-// tourSchema.pre('save', function(next) {
-//   this.slug = slugify(this.name, { lower: true });
-//   next();
-// });
-// tourSchema.post('save', function(doc, next) {
-//   console.log(doc);
-//   next();
-// });
+  //~ DB MIDDLEWARES
+
+//^ 1) Document Middleware (pre,post): runs  or after .save() and .create() only...
+tourSchema.pre('save', function(next) {
+  // this.slug = slugify(this.name, { lower: true });
+  this.start = Date.now();
+  next();
+});
+tourSchema.post('save', function(doc, next) {
+  console.log(`Document saved in ${Date.now() - this.start} milliseconds!`);
+  next();
+});
+
+//^ 2) Query Middleware (pre,post): runs before or after .find() , .findOne() , .findById() , .findOneAndUpdate() , .findOneAndDelete() because we use regex starts with find...
+tourSchema.pre(/^find/, function(next) {
+  this.find({ secretTour: { $ne: true } });
+  this.start = Date.now();
+  next();
+});
+tourSchema.post(/^find/, function(docs, next) {
+  console.log(`Query took ${Date.now() - this.start} milliseconds!`);
+  next();
+});
+
+//^ 3) Aggregation Middleware (pre,post): runs before or after .aggregate()
+tourSchema.pre('aggregate', function(next) {
+  // this.pipline return the array of aggregation pipline stages 
+  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
+  this.start = Date.now();
+  next();
+});
+tourSchema.post('aggregate', function(docs, next) {
+  console.log(`Aggregation took ${Date.now() - this.start} milliseconds!`);
+  next();
+});
 
 
 
