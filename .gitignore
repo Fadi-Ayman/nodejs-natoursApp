@@ -29,6 +29,7 @@ out/
 .env
 .env.*
 !.env.example
+config.env
 
 # OS files
 .DS_Store
@@ -70,3 +71,4 @@ docker-compose.override.yml
 
 # Summary file in root directory
 Summary.js
+
