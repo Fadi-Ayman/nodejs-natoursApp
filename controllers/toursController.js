@@ -66,7 +66,7 @@ exports.getAllTours = async (req, res) => {
     const tours = await features.query;
 
     res.status(200).json({
-      success: true,
+      status: 'success',
       requestedAt: req.requestedTime,
       results: tours.length,
       data: {
@@ -75,7 +75,7 @@ exports.getAllTours = async (req, res) => {
     });
   } catch (error) {
     res.status(404).json({
-      success: false,
+      status: 'fail',
       message: error.message || unexpectedErrorMessage,
       errors: error.errors || undefined // all mongose Errors
     });
@@ -87,14 +87,14 @@ exports.getTourById = async (req, res) => {
     const { id } = req.params;
     const tour = await Tour.findById(id);
     res.status(200).json({
-      success: true,
+      status: 'success',
       data: {
         tour
       }
     });
   } catch (error) {
     res.status(400).json({
-      success: false,
+      status: 'fail',
       message: error.message || unexpectedErrorMessage,
       errors: error.errors || undefined // all mongose Errors
     });
@@ -105,14 +105,14 @@ exports.createTour = async (req, res) => {
   try {
     const newTour = await Tour.create(req.body);
     res.status(201).json({
-      success: true,
+      status: 'success',
       data: {
         tour: newTour
       }
     });
   } catch (error) {
     res.status(400).json({
-      success: false,
+      status: 'fail',
       message: error.message || unexpectedErrorMessage,
       errors: error.errors || undefined // all mongose Errors
     });
@@ -129,15 +129,15 @@ exports.updateTour = async (req, res) => {
     });
 
     res.status(200).json({
-      success: true,
+      status: 'success',
       data: {
         tour: updatedTour,
-        insertionId: updatedTour.id
+        insertionId: updatedTour._id
       }
     });
   } catch (error) {
     res.status(404).json({
-      success: false,
+      status: 'fail',
       message: error.message || unexpectedErrorMessage,
       errors: error.errors || undefined // all mongoose Errors
     });
@@ -150,11 +150,11 @@ exports.deleteTour = async (req, res) => {
     await Tour.findByIdAndDelete(id);
 
     res.status(200 ).json({
-      success: true
+      status: 'success'
     });
   } catch (error) {
     res.status(400).json({
-      success: false,
+      status: 'fail',
       message: error.message || unexpectedErrorMessage,
       errors: error.errors || undefined // all mongose Errors
     });
@@ -200,7 +200,7 @@ exports.getTourStats = async (req, res) => {
       }
     ]);
     res.status(200).json({
-      success: true,
+      status: 'success',
       requestedAt: req.requestedTime,
       data: {
         stats
@@ -208,7 +208,7 @@ exports.getTourStats = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
-      success: false,
+      status: 'fail',
       message: error.message || unexpectedErrorMessage,
       errors: error.errors || undefined // all mongose Errors
     });
@@ -264,7 +264,7 @@ exports.getMonthlyPlan = async (req, res) => {
     ]);
 
     res.status(200).json({
-      success: true,
+      status: 'success',
       results: plan.length,
       requestedAt: req.requestedTime,
       data: {
@@ -273,7 +273,7 @@ exports.getMonthlyPlan = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
-      success: false,
+      status: 'fail',
       message: error.message || unexpectedErrorMessage,
       errors: error.errors || undefined // all mongose Errors
     });

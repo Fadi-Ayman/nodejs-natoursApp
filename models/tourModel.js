@@ -92,6 +92,11 @@ const tourSchema = new mongoose.Schema(
   }
 );
 
+// remove id from virtual properties because it is a duplicate of _id and we dont need it
+tourSchema.set('toJSON', {
+  virtuals: false
+});
+
 //^ virtual properties (not persisted in db but calculated on the fly), we (cannot use) this virtual propery in query because it is not a part of the document
 tourSchema.virtual('durationWeeks').get(function() {
   return Number((this.duration / 7).toFixed(2)) || 0
