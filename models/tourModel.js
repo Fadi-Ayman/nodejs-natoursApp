@@ -54,8 +54,8 @@ const tourSchema = new mongoose.Schema(
     },
     priceDiscount: {
       type: Number,
+      // Validators Works only on CREATE and SAVE
       validate: {
-        // this only points to the current document on NEW document creation 
         validator: function(value) {
           return value < this.price;
         },

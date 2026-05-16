@@ -1,10 +1,19 @@
-
 {
   "extends": ["airbnb-base", "prettier", "plugin:node/recommended"],
+
   "env": {
     "node": true,
     "es2022": true
   },
+
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".json"]
+      }
+    }
+  },
+
   "rules": {
     "no-console": "off",
     "spaced-comment": "off",
@@ -18,13 +27,16 @@
     "class-methods-use-this": "off",
     "prefer-destructuring": ["error", { "object": true, "array": false }],
     "arrow-body-style": "off",
+
     "no-unused-vars": [
       "error",
       {
         "argsIgnorePattern": "req|res|next|val"
       }
     ],
+
     "node/no-unsupported-features/es-syntax": "off",
+
     "import/no-extraneous-dependencies": [
       "error",
       {
@@ -35,5 +47,9 @@
 }
 
 // npm install -D eslint@8 eslint-config-airbnb-base eslint-config-prettier eslint-plugin-import eslint-plugin-node prettier
+
+// npm i -D eslint-import-resolver-node
+
+// ctrl + shift + p => developer: reload window
 
 // npx eslint .
