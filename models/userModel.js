@@ -34,10 +34,11 @@ const userSchema = new mongoose.Schema({
       message: 'Passwords are not the same',
     },
   },
+  passwordChangedAt: Date,
 });
 
 userSchema.pre('save', async function (next) {
-  if(!this.isModified('password')) return next();
+  if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12); // cpu cost 12
   this.passwordConfirm = undefined;
   next();
@@ -46,9 +47,20 @@ userSchema.pre('save', async function (next) {
 // INSTANCE METHOD - it is available on all documents in certain collection ,so wen can use now user.correctPasswrd(***,***)
 userSchema.methods.correctPassword = async function (
   candidatePassword,
-  userPassword
+  userPassword,
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+userSchema.methods.changedPasswordAfterJWT = function (JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimestamp = parseInt(
+      this.passwordChangedAt.getTime() / 1000,
+      10,
+    );
+    return JWTTimestamp < changedTimestamp;
+  }
+  return false; // false means not changed
 };
 
 const User = mongoose.model('User', userSchema);

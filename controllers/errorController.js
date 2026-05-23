@@ -61,11 +61,10 @@ const AppError = require('../utils/AppError');
 //   }
 // }
 
-
-const buildErrorsObject = errorsArray => {
+const buildErrorsObject = (errorsArray) => {
   const errors = {};
 
-  errorsArray.forEach(err => {
+  errorsArray.forEach((err) => {
     if (err.field) {
       errors[err.field] = err.message;
     }
@@ -75,46 +74,38 @@ const buildErrorsObject = errorsArray => {
   return Object.keys(errors).length ? errors : null;
 };
 
-const handleCastErrorDB = err => {
+const handleCastErrorDB = (err) => {
   // support future multiple cast errors
   const extractedErrors = [
     {
       field: err.path,
-      message: `Invalid ${err.path}: ${err.value}.`
-    }
+      message: `Invalid ${err.path}: ${err.value}.`,
+    },
   ];
 
   const errors = buildErrorsObject(extractedErrors);
 
-  return new AppError(
-    Object.values(errors).join(', '),
-    400,
-    errors
-  );
+  return new AppError(Object.values(errors).join(', '), 400, errors);
 };
 
-const handleDuplicateFieldsDB = err => {
+const handleDuplicateFieldsDB = (err) => {
   // support multiple duplicate keys
   const extractedErrors = Object.entries(err.keyValue).map(
     ([field, value]) => ({
       field,
-      message: `Duplicate field value: ${value}. Please use another value!`
-    })
+      message: `Duplicate field value: ${value}. Please use another value!`,
+    }),
   );
 
   const errors = buildErrorsObject(extractedErrors);
 
-  return new AppError(
-    Object.values(errors).join(', '),
-    400,
-    errors
-  );
+  return new AppError(Object.values(errors).join(', '), 400, errors);
 };
 
-const handleValidationErrorDB = err => {
-  const extractedErrors = Object.values(err.errors).map(el => ({
+const handleValidationErrorDB = (err) => {
+  const extractedErrors = Object.values(err.errors).map((el) => ({
     field: el.path,
-    message: el.message
+    message: el.message,
   }));
 
   const errors = buildErrorsObject(extractedErrors);
@@ -122,17 +113,22 @@ const handleValidationErrorDB = err => {
   return new AppError(
     `Invalid input data: ${Object.values(errors).join(', ')}`,
     400,
-    errors
+    errors,
   );
 };
+
+const handleJsonWebTokenError = () =>
+  new AppError('Invalid token. Please log in again!', 401);
+const handleTokenExpiredError = () =>
+  new AppError('Your token has expired! Please log in again.', 401);
 
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
     status: err.status,
     message: err.message,
-    errors: err.errors,
+    errors: err.errors ? err.errors : undefined,
     stack: err.stack,
-    error: err
+    error: err,
   });
 };
 
@@ -142,7 +138,7 @@ const sendErrorProd = (err, res) => {
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
-      errors: err.errors
+      errors: err.errors ? err.errors : undefined,
     });
   }
   // Programming or other unknown error: don't leak error details
@@ -153,7 +149,7 @@ const sendErrorProd = (err, res) => {
     // send generic message
     res.status(500).json({
       status: 'error',
-      message: 'somthing went wrong'
+      message: 'somthing went wrong',
     });
   }
 };
@@ -165,16 +161,17 @@ module.exports = (err, req, res, next) => {
   if (process.env.NODE_ENV === 'development') {
     sendErrorDev(err, res);
   } else if (process.env.NODE_ENV === 'production') {
-    let error = { ...err };
+    let error = { ...err, message: err.message };
 
-    if (err.name === 'CastError')
-      error = handleCastErrorDB(error);
+    if (err.name === 'CastError') error = handleCastErrorDB(error);
 
-    if (err.code === 11000)
-      error = handleDuplicateFieldsDB(error);
+    if (err.code === 11000) error = handleDuplicateFieldsDB(error);
 
-    if (err.name === 'ValidationError')
-      error = handleValidationErrorDB(error);
+    if (err.name === 'ValidationError') error = handleValidationErrorDB(error);
+
+    if (err.name === 'JsonWebTokenError') error = handleJsonWebTokenError();
+
+    if (err.name === 'TokenExpiredError') error = handleTokenExpiredError();
 
     sendErrorProd(error, res);
   }
