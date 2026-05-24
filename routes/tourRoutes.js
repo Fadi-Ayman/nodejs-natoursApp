@@ -10,23 +10,23 @@ router
   .get(toursController.aliasTopTours, toursController.getAllTours);
 
 //get stats using aggrigation pipline stages
-router
-  .route('/tour-stats')
-  .get(toursController.getTourStats);
+router.route('/tour-stats').get(toursController.getTourStats);
 
 //get monthly plan
-router
-  .route('/monthly-plan/:year')
-  .get(toursController.getMonthlyPlan);
+router.route('/monthly-plan/:year').get(toursController.getMonthlyPlan);
 
 router
   .route('/')
-  .get(authController.protect,toursController.getAllTours)
+  .get(authController.protect, toursController.getAllTours)
   .post(toursController.createTour);
 router
   .route('/:id')
   .get(toursController.getTourById)
   .patch(toursController.updateTour)
-  .delete(toursController.deleteTour);
+  .delete(
+    authController.protect,
+    authController.restrictTo('admin', 'lead-guide'),
+    toursController.deleteTour,
+  );
 
 module.exports = router;

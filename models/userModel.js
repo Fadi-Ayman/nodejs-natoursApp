@@ -20,6 +20,8 @@ const userSchema = new mongoose.Schema({
     required: [true, 'User must have a password'],
     select: false,
     min: 8,
+    //! should not return it in user response
+    
   },
   passwordConfirm: {
     type: String,
@@ -33,6 +35,11 @@ const userSchema = new mongoose.Schema({
       },
       message: 'Passwords are not the same',
     },
+  },
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'lead-guide', 'admin'],
+    default: 'user',
   },
   passwordChangedAt: Date,
 });
