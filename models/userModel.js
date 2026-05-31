@@ -65,6 +65,11 @@ userSchema.pre('save', function (next) {
   next();
 });
 
+userSchema.pre(/^find/, function (next) {
+  this.find({ active: { $ne: false } });
+  next();
+});
+
 // INSTANCE METHOD - it is available on all documents in certain collection ,so wen can use now user.correctPasswrd(***,***)
 userSchema.methods.correctPassword = async function (
   candidatePassword,

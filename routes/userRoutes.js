@@ -9,6 +9,9 @@ router.post('/signup', authControllers.signup);
 router.post('/login', authControllers.login);
 router.post('/forgotPassword', authControllers.forgotPassword);
 router.patch('/resetPassword/:token', authControllers.resetPassword);
+router.patch('/updatePassword', authControllers.protect, authControllers.updatePassword);
+router.patch('/updateMe', authControllers.protect, usersControllers.updateMe);
+router.delete('/deleteMe', authControllers.protect, usersControllers.deleteMe);
 
 // CRUD ROUTES
 router
