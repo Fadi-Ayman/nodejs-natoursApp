@@ -1,5 +1,10 @@
 const express = require('express');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
 
 const app = express();
 
@@ -8,26 +13,68 @@ const userRouter = require('./routes/userRoutes');
 const AppError = require('./utils/AppError');
 const globalErrorHandler = require('./controllers/errorController');
 
-// MIDDLEWARES
-// middleware for logging
-if(process.env.NODE_ENV === 'development') {
+const limiter = rateLimit({
+  max: 100, // max number of requests from the same IP
+  windowMs: 60 * 60 * 1000, // per hour
+  handler: (req, res, next) => {
+    return next(
+      new AppError(
+        'Too many requests from this IP, please try again in an hour!',
+        429,
+      ),
+    );
+  },
+});
+
+// GLOBAL MIDDLEWARES
+
+// security headers
+app.use(helmet());
+
+// logger
+if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
-// middleware for get body for post request.
-app.use(express.json());
-// middleware for static files
+
+// rate limiting
+app.use('/api', limiter);
+
+// get body for post request. (body parser)
+app.use(express.json({ limit: '10kb' })); // limit the size of the body to
+
+// data sanitization against NoSQL query injection //! to prevent for example { "email": { "$gt": "" }, "password": "pass1234" }
+app.use(mongoSanitize());
+
+// data sanitization against XSS //! to prevent html from injecting in the input fields and then executing it in the browser
+app.use(xss());
+
+// prevent parameter pollution //! to prevent for example ?sort=price&sort=duration which will cause problem in the sorting
+app.use(
+  hpp({
+    // whitelist of parameters that are allowed to have duplicate values in the query string
+    whitelist: [
+      'duration',
+      'ratingsQuantity',
+      'ratingsAverage',
+      'maxGroupSize',
+      'difficulty',
+      'price',
+    ],
+  }),
+);
+
+// static files
 app.use(express.static(`${__dirname}/public`));
+
 // middleWare To Minuplate Request object and add to it requestTime
 app.use((req, res, next) => {
   req.requestedTime = new Date().toISOString();
   next();
 });
 
-
 // Routes
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
-
 
 // for unhandled routes instead of sending html
 app.all('*', (req, res, next) => {
