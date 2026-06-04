@@ -12,11 +12,13 @@ exports.aliasTopTours = (req, res, next) => {
 };
 
 exports.getAllTours = catchAsync(async (req, res, next) => {
-  const features = new ApiFeatures(Tour.find(), req.query)
+  const mainQuery = Tour.find()
+  const features = new ApiFeatures(mainQuery, req.query)
     .filter()
     .sort()
     .limitFields()
     .paginate();
+    
 
   console.log(req.query);
 
@@ -33,7 +35,7 @@ exports.getAllTours = catchAsync(async (req, res, next) => {
 
 exports.getTourById = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const tour = await Tour.findById(id);
+  const tour = await Tour.findById(id)
 
   if (!tour) {
     return next(new AppError(`No tour found with id: ${id}`, 404));

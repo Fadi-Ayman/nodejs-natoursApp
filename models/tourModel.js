@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+// const User = require('./userModel');
 // const validator = require('validator');
 
 //(1) Create mongo schema
@@ -84,6 +85,31 @@ const tourSchema = new mongoose.Schema(
     startDates: [Date],
     secretTour: { type: Boolean, default: false }, // for test query middleware and aggregation middleware
     // slug: String, // for test document middleware
+    startLocation: {
+      // GeoJSON
+      type: {
+        type: String,
+        default: 'Point',
+        enum: ['Point'],
+      },
+      coordinates: [Number],
+      address: String,
+      description: String,
+    },
+    locations: [
+      {
+        type: {
+          type: String,
+          default: 'Point',
+          enum: ['Point'],
+        },
+        coordinates: [Number],
+        address: String,
+        description: String,
+        day: Number,
+      },
+    ],
+    guides: [{ type: mongoose.Schema.ObjectId, ref: 'User' }],
   },
   // to include virtual properties in the output of the response
   {
@@ -92,37 +118,43 @@ const tourSchema = new mongoose.Schema(
   },
 );
 
+
+
+//^ virtual properties (not persisted in db but calculated on the fly), we (cannot use) this virtual propery in query because it is not a part of the document
+
 // remove id from virtual properties because it is a duplicate of _id and we dont need it
 tourSchema.set('toJSON', {
   virtuals: false,
 });
 
-//^ virtual properties (not persisted in db but calculated on the fly), we (cannot use) this virtual propery in query because it is not a part of the document
 tourSchema.virtual('durationWeeks').get(function () {
   return Number((this.duration / 7).toFixed(2)) || 0;
 });
 
-//~ DB MIDDLEWARES
+//~ DB MIDDLEWARES ~
 
-//^ 1) Document Middleware (pre,post): runs  or after .save() and .create() only...
-tourSchema.pre('save', function (next) {
-  // this.slug = slugify(this.name, { lower: true });
-  this.start = Date.now();
-  next();
-});
-tourSchema.post('save', function (doc, next) {
-  console.log(`Document saved in ${Date.now() - this.start} milliseconds!`);
-  next();
-});
+//^ 1) Document Middlewares (pre,post): runs  or after .save() and .create() only...
+
+//* embedding the guides in the tour document -- but no need for it because better to use referencing because the guides can be updated and we dont want to update the tour document every time we update the guide document
+// tourSchema.pre('save', async function (next) {
+// const guidesPromises = this.guides.map(async id => await User.findById(id));
+// this.guides = await Promise.all(guidesPromises);
+// next();
+// })
 
 //^ 2) Query Middleware (pre,post): runs before or after .find() , .findOne() , .findById() , .findOneAndUpdate() , .findOneAndDelete() because we use regex starts with find...
 tourSchema.pre(/^find/, function (next) {
   this.find({ secretTour: { $ne: true } });
-  this.start = Date.now();
   next();
 });
-tourSchema.post(/^find/, function (docs, next) {
-  console.log(`Query took ${Date.now() - this.start} milliseconds!`);
+
+//* that to populate the guides field with the data of the guides instead of just the ids
+//* populate make another query to the db
+tourSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'guides',
+    select: '-__v -passwordChangedAt',
+  });
   next();
 });
 
@@ -130,11 +162,6 @@ tourSchema.post(/^find/, function (docs, next) {
 tourSchema.pre('aggregate', function (next) {
   // this.pipline return the array of aggregation pipline stages
   this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
-  this.start = Date.now();
-  next();
-});
-tourSchema.post('aggregate', function (docs, next) {
-  console.log(`Aggregation took ${Date.now() - this.start} milliseconds!`);
   next();
 });
 
