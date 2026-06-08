@@ -118,17 +118,27 @@ const tourSchema = new mongoose.Schema(
   },
 );
 
+// Remove __v from any response
+tourSchema.pre(/^find/, function (next) {
+  this.select('-__v');
+  next();
+});
 
+// remove id of virtual from schema , if there is a virtuals
+tourSchema.set('id', false);
 
 //^ virtual properties (not persisted in db but calculated on the fly), we (cannot use) this virtual propery in query because it is not a part of the document
 
-// remove id from virtual properties because it is a duplicate of _id and we dont need it
-tourSchema.set('toJSON', {
-  virtuals: false,
-});
-
 tourSchema.virtual('durationWeeks').get(function () {
   return Number((this.duration / 7).toFixed(2)) || 0;
+});
+
+// virtual populate to populate the reviews of the tour without store the reviews in the tour document and without make another query to the db because it will be populated when we get the tour document and it is not a part of the tour document but it is a virtual property that will be calculated on the fly when we get the tour document
+tourSchema.virtual('reviews', {
+  ref: 'Review',
+  foreignField: 'tour',
+  localField: '_id',
+  options: { skipTourPopulate: true }, // to remove the guides from res
 });
 
 //~ DB MIDDLEWARES ~
@@ -151,6 +161,9 @@ tourSchema.pre(/^find/, function (next) {
 //* that to populate the guides field with the data of the guides instead of just the ids
 //* populate make another query to the db
 tourSchema.pre(/^find/, function (next) {
+  // in the populate of reviews we add (options: { skipGuidesPopulate: true }) to remove the guides from res
+  if (this.options.skipGuidesPopulate) return next();
+
   this.populate({
     path: 'guides',
     select: '-__v -passwordChangedAt',

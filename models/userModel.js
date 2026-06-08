@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'guide', 'lead-guide', 'admin'],
     default: 'user',
   },
-  passwordChangedAt: Date,
+  passwordChangedAt: {type:Date,select: false},
   passwordResetToken: String,
   passwordResetExpires: Date,
   active: {
@@ -50,6 +50,15 @@ const userSchema = new mongoose.Schema({
     select: false,
   },
 });
+
+// Remove __v from any response
+userSchema.pre(/^find/, function (next) {
+  this.select('-__v');
+  next();
+});
+
+// remove id of virtual from schema , if there is a virtuals
+userSchema.set('id', false);
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
