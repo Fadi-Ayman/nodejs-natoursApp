@@ -1,8 +1,12 @@
 const express = require('express');
 const toursController = require('../controllers/toursController');
 const authController = require('../controllers/authController');
+const reviewRouter = require('./reviewRoutes');
 
 const router = express.Router(); // this is tourRouter
+
+// this is a nested route to get the reviews of a specific tour ,ex /tours/:tourId/reviews
+router.use('/:tourId/reviews', reviewRouter);
 
 // alias route (we put it before the :id routes as it will be treated as a parameter if we put it after it)
 router

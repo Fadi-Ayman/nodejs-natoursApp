@@ -12,13 +12,13 @@ exports.aliasTopTours = (req, res, next) => {
 };
 
 exports.getAllTours = catchAsync(async (req, res, next) => {
-  const mainQuery = Tour.find()
-  const features = new ApiFeatures(mainQuery, req.query)
+  const mainQuery = Tour.find();
+  const features = new ApiFeatures(mainQuery, req.query, Tour)
     .filter()
     .sort()
-    .limitFields()
-    .paginate();
-    
+    .limitFields();
+
+  await features.paginate(); // make it alone because it async , and should pass the model to work
 
   console.log(req.query);
 
@@ -27,6 +27,7 @@ exports.getAllTours = catchAsync(async (req, res, next) => {
     status: 'success',
     requestedAt: req.requestedTime,
     results: tours.length,
+    page: req.query.page * 1 || 1,
     data: {
       tours,
     },

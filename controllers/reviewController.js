@@ -1,35 +1,28 @@
 const Review = require('../models/reviewModel');
 const ApiFeatures = require('../utils/ApiFeatures');
-const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 
 exports.getReviews = catchAsync(async (req, res, next) => {
-  const features = new ApiFeatures(Review.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
-  const reviews = await features.query;
+  let reviews;
+  if (req.params.tourId) {
+    reviews = await Review.find({ tour: req.params.tourId });
+  } else {
+    const features = new ApiFeatures(Review.find(), req.query, Review)
+      .filter()
+      .sort()
+      .limitFields();
+
+    await features.paginate();
+
+    reviews = await features.query;
+  }
+
   res.status(200).json({
     status: 'success',
     results: reviews.length,
+    page: req.query.page * 1 || 1,
     data: {
       reviews,
-    },
-  });
-});
-
-exports.getReviewById = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-  const review = await Review.findById(id);
-
-  if (!review) {
-    return next(new AppError(`No review found with id: ${id}`, 404));
-  }
-  res.status(200).json({
-    status: 'success',
-    data: {
-      review,
     },
   });
 });

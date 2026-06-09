@@ -2,12 +2,11 @@ const express = require('express');
 const reviewController = require('../controllers/reviewController');
 const authController = require('../controllers/authController');
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true }); // megreParams is used to have access to the params of the parent router (tourId in this case) in the reviewController
 
-// router.get('/:id', reviewController.getReviewById);
 router
-  .get('/', reviewController.getReviews)
-  .get('/:id', reviewController.getReviewById)
-  .post('/:tourId', authController.protect, reviewController.createReview);
+  .route('/')
+  .get(reviewController.getReviews)
+  .post(authController.protect, authController.restrictTo('user'),reviewController.createReview);
 
 module.exports = router;

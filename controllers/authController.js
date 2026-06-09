@@ -17,16 +17,18 @@ const createSendToken = (user, statusCode, res) => {
 
   const cookieOptions = {
     expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
     ),
     httpOnly: true,
   };
-  
+
   if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
 
   res.cookie('jwt', token, cookieOptions);
 
   user.password = undefined; // to not send the password in the response
+  user.active = undefined;
+  user.__v = undefined;
 
   res.status(statusCode).json({
     status: 'success',
@@ -45,8 +47,10 @@ exports.signup = catchAsync(async (req, res, next) => {
     email: req.body.email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
-    role: req.body.role,
+    // role: req.body.role,
+    role: "user", // to avoid any security issues if the user send some unwanted fields in the request body like role admin.
   });
+  
 
   createSendToken(newUser, 201, res);
 });
@@ -186,7 +190,10 @@ exports.restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return next(
-        new AppError('You do not have permission to perform this action', 403),
+        new AppError(
+          `You do not have permission to perform this action this action available only for ${roles.join(', ') || 'admin'}`,
+          403,
+        ),
       );
     }
     next();
@@ -204,8 +211,8 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   user.password = req.body.password;
   user.passwordConfirm = req.body.passwordConfirm;
   //* to run the validators and the pre save middleware to hash the password (as they will not work on findByIdAndUpdate)
-  await user.save(); 
-  
+  await user.save();
+
   //^ 4) Log user in, send JWT
   createSendToken(user, 200, res);
 });
