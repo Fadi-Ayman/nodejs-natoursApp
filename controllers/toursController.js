@@ -1,7 +1,6 @@
 const Tour = require('../models/tourModel');
-const ApiFeatures = require('../utils/ApiFeatures');
-const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
+const helperFactory = require('../utils/handlerFactory');
 
 // making a middleware to set the query string for top 5 cheap tours (for alias route)
 exports.aliasTopTours = (req, res, next) => {
@@ -10,106 +9,6 @@ exports.aliasTopTours = (req, res, next) => {
   req.query.fields = 'name,price,ratingsAverage,summary,difficulty';
   next();
 };
-
-exports.getAllTours = catchAsync(async (req, res, next) => {
-  const mainQuery = Tour.find();
-  const features = new ApiFeatures(mainQuery, req.query, Tour)
-    .filter()
-    .sort()
-    .limitFields();
-
-  await features.paginate(); // make it alone because it async , and should pass the model to work
-
-  console.log(req.query);
-
-  const tours = await features.query;
-  res.status(200).json({
-    status: 'success',
-    requestedAt: req.requestedTime,
-    results: tours.length,
-    page: req.query.page * 1 || 1,
-    data: {
-      tours,
-    },
-  });
-});
-
-exports.getTourById = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-  const tour = await Tour.findById(id).populate('reviews');
-
-  if (!tour) {
-    return next(new AppError(`No tour found with id: ${id}`, 404));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      tour,
-    },
-  });
-});
-
-exports.createTour = catchAsync(async (req, res, next) => {
-  const newTour = await Tour.create(req.body);
-  res.status(201).json({
-    status: 'success',
-    data: {
-      tour: newTour,
-    },
-  });
-
-  //^ without catchAsync
-  // try {
-  //   const newTour = await Tour.create(req.body);
-  //   res.status(201).json({
-  //     status: 'success',
-  //     data: {
-  //       tour: newTour
-  //     }
-  //   });
-  // } catch (error) {
-  //   res.status(400).json({
-  //     status: 'fail',
-  //     message: error.message || unexpectedErrorMessage,
-  //     errors: error.errors || undefined // all mongose Errors
-  //   });
-  // }
-});
-
-exports.updateTour = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-  const { body } = req;
-  const updatedTour = await Tour.findByIdAndUpdate(id, body, {
-    new: true, // returns the new updated document ,so we need to store it in updatedTour variable.
-    runValidators: true, // run the scheme validations in update as well as create. validite the body keys
-  });
-
-  if (!updatedTour) {
-    return next(new AppError(`No tour found with id: ${id}`, 404));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      tour: updatedTour,
-      insertionId: updatedTour._id,
-    },
-  });
-});
-
-exports.deleteTour = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-  const tour = await Tour.findByIdAndDelete(id);
-
-  if (!tour) {
-    return next(new AppError(`No tour found with id: ${id}`, 404));
-  }
-
-  res.status(200).json({
-    status: 'success',
-  });
-});
 
 // aggregation pipeline stages
 exports.getTourStats = catchAsync(async (req, res, next) => {
@@ -213,3 +112,15 @@ exports.getMonthlyPlan = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+// Basic CRUD operations using factory functions
+exports.getTours = helperFactory.getAll(
+  Tour,
+  'Tour',
+  { path: 'reviews', select: 'review rating user -tour' },
+  '*',
+);
+exports.getTour = helperFactory.getOne(Tour, 'Tour', { path: 'reviews' });
+exports.createTour = helperFactory.createOne(Tour, 'Tour');
+exports.updateTour = helperFactory.updateOne(Tour, 'Tour');
+exports.deleteTour = helperFactory.deleteOne(Tour, 'Tour');

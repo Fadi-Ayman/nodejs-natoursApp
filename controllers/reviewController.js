@@ -1,45 +1,16 @@
 const Review = require('../models/reviewModel');
-const ApiFeatures = require('../utils/ApiFeatures');
-const catchAsync = require('../utils/catchAsync');
+const helperFactory = require('../utils/handlerFactory');
 
-exports.getReviews = catchAsync(async (req, res, next) => {
-  let reviews;
-  if (req.params.tourId) {
-    reviews = await Review.find({ tour: req.params.tourId });
-  } else {
-    const features = new ApiFeatures(Review.find(), req.query, Review)
-      .filter()
-      .sort()
-      .limitFields();
+// MiddleWare for set tour and user ids to use normal factory function on in instead of make a separate handler for that.
+exports.setTourUserIdsForCreateReview = (req, res, next) => {
+  // Allow nested routes
+  if (!req.body.tour) req.body.tour = req.params.tourId;
+  if (!req.body.user) req.body.user = req.user._id;
+  next();
+};
 
-    await features.paginate();
-
-    reviews = await features.query;
-  }
-
-  res.status(200).json({
-    status: 'success',
-    results: reviews.length,
-    page: req.query.page * 1 || 1,
-    data: {
-      reviews,
-    },
-  });
-});
-
-exports.createReview = catchAsync(async (req, res, next) => {
-  const user = req.user._id;
-  const tour = req.params.tourId;
-  const review = await Review.create({
-    review: req.body.review,
-    rating: req.body.rating,
-    tour,
-    user,
-  });
-  res.status(201).json({
-    status: 'success',
-    data: {
-      review,
-    },
-  });
-});
+exports.getReviews = helperFactory.getAll(Review,'Review',undefined,'*','tour');
+exports.getReview = helperFactory.getOne(Review, 'Review');
+exports.createReview = helperFactory.createOne(Review, 'Review');
+exports.updateReview = helperFactory.updateOne(Review, 'Review');
+exports.deleteReview = helperFactory.deleteOne(Review, 'Review');

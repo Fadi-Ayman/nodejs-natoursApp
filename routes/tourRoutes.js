@@ -11,22 +11,36 @@ router.use('/:tourId/reviews', reviewRouter);
 // alias route (we put it before the :id routes as it will be treated as a parameter if we put it after it)
 router
   .route('/top-5-cheap')
-  .get(toursController.aliasTopTours, toursController.getAllTours);
+  .get(toursController.aliasTopTours, toursController.getTours);
 
 //get stats using aggrigation pipline stages
 router.route('/tour-stats').get(toursController.getTourStats);
 
 //get monthly plan
-router.route('/monthly-plan/:year').get(toursController.getMonthlyPlan);
+router
+  .route('/monthly-plan/:year')
+  .get(
+    authController.protect,
+    authController.restrictTo('admin', 'lead-guide', 'guide'),
+    toursController.getMonthlyPlan,
+  );
 
 router
   .route('/')
-  .get(authController.protect, toursController.getAllTours)
-  .post(toursController.createTour);
+  .get(toursController.getTours)
+  .post(
+    authController.protect,
+    authController.restrictTo('admin', 'lead-guide'),
+    toursController.createTour,
+  );
 router
   .route('/:id')
-  .get(toursController.getTourById)
-  .patch(toursController.updateTour)
+  .get(toursController.getTour)
+  .patch(
+    authController.protect,
+    authController.restrictTo('admin', 'lead-guide'),
+    toursController.updateTour,
+  )
   .delete(
     authController.protect,
     authController.restrictTo('admin', 'lead-guide'),
