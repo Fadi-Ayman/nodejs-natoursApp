@@ -20,12 +20,7 @@ router.patch(
 );
 router.patch('/updateMe', usersControllers.updateMe);
 router.delete('/deleteMe', usersControllers.deleteMe);
-router.get(
-  '/me',
-
-  usersControllers.getMe,
-  usersControllers.getUser,
-);
+router.get('/me', usersControllers.getMe, usersControllers.getUser);
 
 // ONLY ADMIN CAN ACCESS THE ROUTES AFTER THIS MIDDLEWARE
 router.use(authControllers.restrictTo('admin'));

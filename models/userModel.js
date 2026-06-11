@@ -7,11 +7,14 @@ const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'User must have a name'],
+    trim: true,
+    minLength: [3, 'A user name must have more or equal than 3 characters'],
+    maxLength: [30, 'A user name must have less or equal than 30 characters'],
   },
   email: {
     type: String,
     required: [true, 'User must have an email'],
-    unique: true,
+    unique: [true, "This email is already used by another user, please use another email"],
     lowercase: true,
     validate: [validator.isEmail, 'Please provide a valid email'],
   },
@@ -20,14 +23,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'User must have a password'],
     select: false,
-    min: 8,
+    minLength: [8, 'A user password must have more or equal than 8 characters'],
     //! should not return it in user response
   },
   passwordConfirm: {
     type: String,
     required: [true, 'User must confirm the password'],
     select: false,
-    min: 8,
+    minLength: 8,
     // Validators Works only on CREATE and SAVE
     validate: {
       validator: function (el) {

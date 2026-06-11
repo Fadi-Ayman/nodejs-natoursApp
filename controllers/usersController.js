@@ -16,7 +16,7 @@ const filterObj = (obj, ...allowedFields) => {
 exports.getMe = (req, res, next) => {
   req.params.id = req.user._id;
   next();
-}
+};
 
 // #### User Self Updates
 exports.updateMe = catchAsync(async (req, res, next) => {

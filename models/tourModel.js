@@ -48,6 +48,7 @@ const tourSchema = new mongoose.Schema(
       default: 4.5,
       min: [1, 'Rating must be above 1.0'],
       max: [5, 'Rating must be below 5.0'],
+      set : (val) => Math.round(val * 10) / 10 // trick to round for fraction not an integer
     },
     ratingsQuantity: {
       type: Number,
@@ -118,14 +119,21 @@ const tourSchema = new mongoose.Schema(
   },
 );
 
+
+
 // Remove __v from any response
 tourSchema.pre(/^find/, function (next) {
   this.select('-__v');
   next();
 });
-
 // remove id of virtual from schema , if there is a virtuals
 tourSchema.set('id', false);
+
+//^ for better performance in sorting by price and ratingsAverage , 1 for ascending order and -1 for descending order 
+// ~ (uniqe index)
+tourSchema.index({ slug: 1 });
+//~ (compound index) 
+tourSchema.index({ price: 1, ratingsAverage: -1 }); 
 
 //^ virtual properties (not persisted in db but calculated on the fly), we (cannot use) this virtual propery in query because it is not a part of the document
 

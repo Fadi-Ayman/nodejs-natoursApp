@@ -9,10 +9,9 @@ const reviewSchema = new mongoose.Schema(
     },
     rating: {
       type: Number,
-      enum: {
-        values: [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5],
-        message: 'Rating must be between 1 and 5',
-      },
+      min: [1, 'Rating must be above 1.0'],
+      max: [5, 'Rating must be below 5.0'],
+      required: [true, 'Rating can not be empty!'],
       default: 2.5,
     },
     createdAt: {
@@ -37,6 +36,8 @@ const reviewSchema = new mongoose.Schema(
   },
 );
 
+reviewSchema.index({ tour: 1, user: 1 }, { unique: true });
+
 // Remove __v from any response
 reviewSchema.pre(/^find/, function (next) {
   this.select('-__v');
@@ -53,13 +54,12 @@ reviewSchema.pre(/^find/, function (next) {
     path: 'user',
     select: '_id name photo',
   });
-  if(this.options.skipTourPopulate) return next();
+  if (this.options.skipTourPopulate) return next();
   this.populate({
     path: 'tour',
-    select:
-    '_id name price ratingsQuantity ratingsAverage imageCover',
+    select: '_id name price ratingsQuantity ratingsAverage imageCover',
     options: { skipGuidesPopulate: true },
-  })
+  });
   next();
 });
 
@@ -75,6 +75,46 @@ reviewSchema.pre('save', async function (next) {
     );
   }
   next();
+});
+
+// if the user make a review for certain tour cannot make other review
+//  the diff between statics and methods is that statics are available on the model and methods are available on the document only (instance)
+reviewSchema.statics.calculateAverageRatings = async function (tourId) {
+  const stats = await this.aggregate([
+    {
+      $match: { tour: tourId },
+    },
+    {
+      $group: {
+        _id: '$tour',
+        nRating: { $sum: 1 },
+        avgRating: { $avg: '$rating' },
+      },
+    },
+  ]);
+  if (stats.length > 0) {
+    await this.model('Tour').findByIdAndUpdate(tourId, {
+      ratingsAverage: stats[0].avgRating,
+      ratingsQuantity: stats[0].nRating,
+    });
+  }
+};
+
+reviewSchema.post('save', function () {
+  // this points to current review
+  this.constructor.calculateAverageRatings(this.tour);
+});
+
+reviewSchema.pre(/^findOneAnd/, async function (next) {
+  // before excute delete or update query, we got the document and store it in r to use it in post
+  const r = await this.clone().findOne();
+  if (!r) return next(new AppError('No document found', 404));
+  this.r = r;
+  next();
+});
+
+reviewSchema.post(/^findOneAnd/, async function () {
+  await this.r.constructor.calculateAverageRatings(this.r.tour._id);
 });
 
 const Review = mongoose.model('Review', reviewSchema);
