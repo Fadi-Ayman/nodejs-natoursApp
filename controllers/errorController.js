@@ -124,6 +124,10 @@ const handleJsonWebTokenError = () =>
 const handleTokenExpiredError = () =>
   new AppError('Your token has expired! Please log in again.', 401);
 
+const handleBadValueError = (err) => {
+  return new AppError(err.message, 400);
+}
+
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
     status: err.status,
@@ -173,6 +177,10 @@ module.exports = (err, req, res, next) => {
 
   if (error.name === 'TokenExpiredError')
     error = handleTokenExpiredError();
+
+  if(error.codeName === "BadValue") {
+    error = handleBadValueError(err);
+  }
 
   error.statusCode = error.statusCode || 500;
   error.status = error.status || 'error';

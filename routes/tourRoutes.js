@@ -25,6 +25,13 @@ router
     toursController.getMonthlyPlan,
   );
 
+  router
+  .route('/tours-within/:distance/center/:latlng/unit/:unit')
+  .get(toursController.getToursWithin);
+
+  router.route('/distances/:latlng/unit/:unit')
+  .get(toursController.getDistances);
+
 router
   .route('/')
   .get(toursController.getTours)

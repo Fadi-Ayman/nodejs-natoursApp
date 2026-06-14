@@ -132,6 +132,7 @@ tourSchema.set('id', false);
 //^ for better performance in sorting by price and ratingsAverage , 1 for ascending order and -1 for descending order 
 // ~ (uniqe index)
 tourSchema.index({ slug: 1 });
+tourSchema.index({startLocation :'2dsphere'})
 //~ (compound index) 
 tourSchema.index({ price: 1, ratingsAverage: -1 }); 
 
@@ -180,11 +181,12 @@ tourSchema.pre(/^find/, function (next) {
 });
 
 //^ 3) Aggregation Middleware (pre,post): runs before or after .aggregate()
-tourSchema.pre('aggregate', function (next) {
-  // this.pipline return the array of aggregation pipline stages
-  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
-  next();
-});
+// tourSchema.pre('aggregate', function (next) {
+//   // this.pipline return the array of aggregation pipline stages
+//   this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
+//   console.log(this.pipeline())
+//   next();
+// });
 
 //(2) create model from schema (Model best practice to be capitalized)
 const Tour = mongoose.model('Tour', tourSchema);
