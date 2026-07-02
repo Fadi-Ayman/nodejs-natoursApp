@@ -14,11 +14,14 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'User must have an email'],
-    unique: [true, "This email is already used by another user, please use another email"],
+    unique: [
+      true,
+      'This email is already used by another user, please use another email',
+    ],
     lowercase: true,
     validate: [validator.isEmail, 'Please provide a valid email'],
   },
-  photo: String,
+  photo: { type: String, default: 'default.jpg' },
   password: {
     type: String,
     required: [true, 'User must have a password'],
@@ -44,7 +47,7 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'guide', 'lead-guide', 'admin'],
     default: 'user',
   },
-  passwordChangedAt: {type:Date,select: false},
+  passwordChangedAt: { type: Date, select: false },
   passwordResetToken: String,
   passwordResetExpires: Date,
   active: {

@@ -52,7 +52,7 @@ reviewSchema.set('id', false);
 reviewSchema.pre(/^find/, function (next) {
   this.populate({
     path: 'user',
-    select: '_id name photo',
+    select: '_id name photo email',
   });
   if (this.options.skipTourPopulate) return next();
   this.populate({

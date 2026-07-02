@@ -1,0 +1,13 @@
+extends base
+
+block content
+  main.main
+    .error
+      .error__header
+        h1.error__code= code
+        h2.error__title= title
+
+      p.error__msg= msg
+
+      .error__actions
+        a.error__btn(href="/") Back to Home

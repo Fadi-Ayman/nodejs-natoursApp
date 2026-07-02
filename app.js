@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
@@ -5,14 +6,25 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
+const cookieParser = require('cookie-parser');
+const helmetConfig = require('./utils/helmetConfig');
+
 
 const app = express();
 
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
 const reviewRouter = require('./routes/reviewRoutes');
+const bookingRouter = require('./routes/bookingRoutes');
 const AppError = require('./utils/AppError');
 const globalErrorHandler = require('./controllers/errorController');
+const viewRoutes = require('./routes/viewRoutes');
+
+//~ Define the view engine - SSR Logic
+app.set('view engine', 'pug');
+app.set('views', path.join(__dirname, 'views'));
+// ~ End SSR Logic
+
 
 const limiter = rateLimit({
   max: 100, // max number of requests from the same IP
@@ -30,8 +42,8 @@ const limiter = rateLimit({
 // GLOBAL MIDDLEWARES
 
 // security headers
-app.use(helmet());
-
+// app.use(helmet());
+app.use(helmet(helmetConfig));
 // logger
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
@@ -42,6 +54,12 @@ app.use('/api', limiter);
 
 // get body for post request. (body parser)
 app.use(express.json({ limit: '10kb' })); // limit the size of the body to
+
+// get body for post request of form sumbittion in html or template. (body parser)
+app.use(express.urlencoded({ extended: true, limit: '10kb' })); 
+
+// cookie parser
+app.use(cookieParser());
 
 // data sanitization against NoSQL query injection //! to prevent for example { "email": { "$gt": "" }, "password": "pass1234" }
 app.use(mongoSanitize());
@@ -65,7 +83,7 @@ app.use(
 );
 
 // static files
-app.use(express.static(`${__dirname}/public`));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // middleWare To Minuplate Request object and add to it requestTime
 app.use((req, res, next) => {
@@ -73,10 +91,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+
+// ^ Routes
+// Website Routes
+app.use('/', viewRoutes);
+// API Routes
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/reviews', reviewRouter);
+app.use('/api/v1/booking', bookingRouter);
 
 // for unhandled routes instead of sending html
 app.all('*', (req, res, next) => {

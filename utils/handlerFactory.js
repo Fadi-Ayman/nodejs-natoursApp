@@ -4,14 +4,34 @@ const catchAsync = require('./catchAsync');
 
 exports.deleteOne = (Model, ModelName) =>
   catchAsync(async (req, res, next) => {
-    const { id } = req.params;
-    const doc = await Model.findByIdAndDelete(id);
+    const { user } = req;
+    const userId = user._id;
+    const userRole = user.role;
 
-    if (!doc) {
+    const { id } = req.params;
+
+    // Get the document first
+    const document = await Model.findById(id);
+
+    if (!document) {
       return next(
         new AppError(`No ${ModelName || 'document'} found with id: ${id}`, 404),
       );
     }
+
+    // Allow delete only if owner or admin
+    const isOwner = document.user._id?.toString() === userId.toString();
+
+    if (!isOwner && userRole !== 'admin') {
+      return next(
+        new AppError(
+          `You are not allowed to delete this ${ModelName || 'document'}, as it not yours`,
+          403,
+        ),
+      );
+    }
+
+    await Model.findByIdAndDelete(id);
 
     res.status(200).json({
       status: 'success',
@@ -20,27 +40,48 @@ exports.deleteOne = (Model, ModelName) =>
 
 exports.updateOne = (Model, ModelName) =>
   catchAsync(async (req, res, next) => {
+    const { user } = req;
+    const userId = user._id;
+    const userRole = user.role;
+
     const documentNameLowercase = ModelName
       ? ModelName.toLowerCase()
       : 'document';
+
     const { id } = req.params;
     const { body } = req;
-    const updatedDocumnet = await Model.findByIdAndUpdate(id, body, {
-      new: true, // returns the new updated document ,so we need to store it in updatedDocumnet variable.
-      runValidators: true, // run the scheme validations in update as well as create. validite the body keys
-    });
 
-    if (!updatedDocumnet) {
+    // Get the document first
+    const document = await Model.findById(id);
+
+    if (!document) {
       return next(
         new AppError(`No ${ModelName || 'document'} found with id: ${id}`, 404),
       );
     }
 
+    // Allow update only if owner or admin
+    const isOwner = document.user._id?.toString() === userId.toString();
+
+    if (!isOwner && userRole !== 'admin') {
+      return next(
+        new AppError(
+          `You are not allowed to update this ${ModelName || 'document'}, as it not yours`,
+          403,
+        ),
+      );
+    }
+
+    const updatedDocument = await Model.findByIdAndUpdate(id, body, {
+      new: true,
+      runValidators: true,
+    });
+
     res.status(200).json({
       status: 'success',
       data: {
-        [documentNameLowercase]: updatedDocumnet,
-        insertionId: updatedDocumnet._id,
+        [documentNameLowercase]: updatedDocument,
+        insertionId: updatedDocument._id,
       },
     });
   });
@@ -117,7 +158,7 @@ exports.getAll = (
     }
 
     // const documents = await features.query.explain()
-    const documents = await features.query
+    const documents = await features.query;
 
     res.status(200).json({
       status: 'success',

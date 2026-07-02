@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
-const sendEmail = require('../utils/email');
+const Email = require('../utils/email');
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -14,6 +14,10 @@ const signToken = (id) => {
 
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
+
+  user.password = undefined; // to not send the password in the response
+  user.active = undefined;
+  user.__v = undefined;
 
   const cookieOptions = {
     expires: new Date(
@@ -25,10 +29,6 @@ const createSendToken = (user, statusCode, res) => {
   if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
 
   res.cookie('jwt', token, cookieOptions);
-
-  user.password = undefined; // to not send the password in the response
-  user.active = undefined;
-  user.__v = undefined;
 
   res.status(statusCode).json({
     status: 'success',
@@ -48,10 +48,12 @@ exports.signup = catchAsync(async (req, res, next) => {
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
     // role: req.body.role,
-    role: "user", // to avoid any security issues if the user send some unwanted fields in the request body like role admin.
+    role: 'user', // to avoid any security issues if the user send some unwanted fields in the request body like role admin.
   });
-  
 
+  // ~ Cannot send mails on prod.
+  // const url = `${req.protocol}://${req.get('host')}/me`;
+  // await new Email(newUser, url).sendWelcome();
   createSendToken(newUser, 201, res);
 });
 
@@ -86,14 +88,8 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   //^ 3) Send it to user's email
   const resetURL = `${req.protocol}://${req.get('host')}/api/v1/users/resetPassword/${resetToken}`;
 
-  const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
-
   try {
-    await sendEmail({
-      email: user.email,
-      subject: 'Your password reset token (valid for 10 min)',
-      message,
-    });
+    await new Email(user, resetURL).sendPasswordReset();
 
     res.status(200).json({
       status: 'success',
@@ -148,6 +144,8 @@ exports.protect = catchAsync(async (req, res, next) => {
     req.headers.authorization.startsWith('Bearer')
   ) {
     token = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies.jwt) {
+    token = req.cookies.jwt;
   }
 
   if (!token)
@@ -183,6 +181,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 
   //^ 5) GRANT ACCESS TO PROTECTED ROUTE
   req.user = currentUser; // we can access the user in the next middlewares and controllers by req.user
+  res.locals.user = currentUser;
   next();
 });
 
@@ -202,7 +201,7 @@ exports.restrictTo = (...roles) => {
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
   //^ 1) Get user from collection
-  const user = await User.findById(req.user.id).select('+password');
+  const user = await User.findById(req.user._id).select('+password');
   //^ 2) Check if POSTed current password is correct
   if (!(await user.correctPassword(req.body.currentPassword, user.password))) {
     return next(new AppError('Your current password is wrong.', 401));
@@ -215,4 +214,46 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
 
   //^ 4) Log user in, send JWT
   createSendToken(user, 200, res);
+});
+
+//~ SSR LOGIC
+
+//~ ONly for rendered pages , no errors - SSR LOGIC
+exports.isLoggedIn = async (req, res, next) => {
+  if (req.cookies.jwt) {
+    try {
+      //^ 1) Verification token
+      const decoded = await promisify(jwt.verify)(
+        req.cookies.jwt,
+        process.env.JWT_SECRET,
+      );
+
+      //^ 2) Check if user still exists
+      const userID = decoded.id;
+      const currentUser = await User.findById(userID);
+      if (!currentUser) {
+        return next();
+      }
+      //^ 3) Check if user changed password after the token was issued
+      if (currentUser.changedPasswordAfterJWT(decoded.iat)) {
+        return next();
+      }
+
+      //^ 4) There is a logged in user -> to send the user data to the pug template (locals)
+      res.locals.user = currentUser;
+      return next();
+    } catch (err) {
+      return next();
+    }
+  }
+  next();
+};
+
+//~  SSR LOGIC
+exports.logout = catchAsync((req, res, next) => {
+  res.cookie('jwt', 'loggedout', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+  });
+  res.status(200).json({ status: 'success' });
 });

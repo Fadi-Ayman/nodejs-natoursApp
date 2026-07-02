@@ -126,68 +126,89 @@ const handleTokenExpiredError = () =>
 
 const handleBadValueError = (err) => {
   return new AppError(err.message, 400);
-}
-
-const sendErrorDev = (err, res) => {
-  res.status(err.statusCode).json({
-    status: err.status,
-    message: err.message,
-    errors: err.errors ? err.errors : undefined,
-    stack: err.stack,
-    error: err,
-  });
 };
 
-const sendErrorProd = (err, res) => {
-  // Operational, trusted error: send message to client
-  if (err.isOperational) {
-    res.status(err.statusCode).json({
+const sendErrorDev = (err, req, res) => {
+  console.log(err);
+  // Api
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
       errors: err.errors ? err.errors : undefined,
+      stack: err.stack,
+      error: err,
+    });
+  }
+
+  // Website
+  return res.status(err.statusCode).render('error', {
+    title: 'Something went wrong',
+    msg: err.message,
+  });
+};
+
+const sendErrorProd = (err, req, res) => {
+  //a) API
+  // Operational, trusted error: send message to client
+  if (req.originalUrl.startsWith('/api')) {
+    if (err.isOperational) {
+      return res.status(err.statusCode).json({
+        status: err.status,
+        message: err.message,
+        errors: err.errors ? err.errors : undefined,
+      });
+    }
+    // Programming or other unknown error: don't leak error details
+    // log error - to see the logs in heroku platform, use heroku logs --tail
+    console.error('ERROR 💥', err);
+    // send generic message
+    return res.status(err.statusCode || 500).json({
+      status: 'error',
+      message: err.message || 'somthing went wrong',
+    });
+  }
+
+  //b) rendered website
+  if (err.isOperational) {
+    console.error('ERROR 💥', err);
+    return res.status(err.statusCode).render('error', {
+      title: 'Something went wrong',
+      msg: err.message,
     });
   }
   // Programming or other unknown error: don't leak error details
-  else {
-    // log error - to see the logs in heroku platform, use heroku logs --tail
-    console.error('ERROR 💥', err);
 
-    // send generic message
-    res.status(500).json({
-      status: 'error',
-      message: 'somthing went wrong',
-    });
-  }
+  // log error - to see the logs in heroku platform, use heroku logs --tail
+  console.error('ERROR 💥', err);
+  // send generic message
+  return res.status(err.statusCode).render('error', {
+    title: 'Something went wrong',
+    msg: 'please try again later',
+  });
 };
 
 module.exports = (err, req, res, next) => {
   let error = err;
 
-  if (error.name === 'CastError')
-    error = handleCastErrorDB(error);
+  if (error.name === 'CastError') error = handleCastErrorDB(error);
 
-  if (error.code === 11000)
-    error = handleDuplicateFieldsDB(error);
+  if (error.code === 11000) error = handleDuplicateFieldsDB(error);
 
-  if (error.name === 'ValidationError')
-    error = handleValidationErrorDB(error);
+  if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
 
-  if (error.name === 'JsonWebTokenError')
-    error = handleJsonWebTokenError();
+  if (error.name === 'JsonWebTokenError') error = handleJsonWebTokenError();
 
-  if (error.name === 'TokenExpiredError')
-    error = handleTokenExpiredError();
+  if (error.name === 'TokenExpiredError') error = handleTokenExpiredError();
 
-  if(error.codeName === "BadValue") {
-    error = handleBadValueError(err);
-  }
+  if (error.codeName === 'BadValue') error = handleBadValueError(error);
 
   error.statusCode = error.statusCode || 500;
   error.status = error.status || 'error';
 
   if (process.env.NODE_ENV === 'development') {
-    sendErrorDev(error, res);
-  } else if (process.env.NODE_ENV === 'production') {
-    sendErrorProd(error, res);
+    sendErrorDev(error, req, res);
+  } else {
+    sendErrorProd(error, req, res);
   }
 };

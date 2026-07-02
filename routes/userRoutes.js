@@ -1,4 +1,5 @@
 const express = require('express');
+
 const usersControllers = require('../controllers/usersController');
 const authControllers = require('../controllers/authController');
 
@@ -7,18 +8,20 @@ const router = express.Router();
 // AUTHENTICATION ROUTES
 router.post('/signup', authControllers.signup);
 router.post('/login', authControllers.login);
+router.post('/logout', authControllers.logout);
 router.post('/forgotPassword', authControllers.forgotPassword);
 router.patch('/resetPassword/:token', authControllers.resetPassword);
 
 // PROTECT ALL ROUTES AFTER THIS MIDDLEWARE
 router.use(authControllers.protect);
 
+router.patch('/updatePassword', authControllers.updatePassword);
 router.patch(
-  '/updatePassword',
-
-  authControllers.updatePassword,
+  '/updateMe',
+  usersControllers.uploadUserPhoto,
+  usersControllers.resizeUserPhoto,
+  usersControllers.updateMe,
 );
-router.patch('/updateMe', usersControllers.updateMe);
 router.delete('/deleteMe', usersControllers.deleteMe);
 router.get('/me', usersControllers.getMe, usersControllers.getUser);
 

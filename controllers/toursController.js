@@ -2,6 +2,56 @@ const Tour = require('../models/tourModel');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const helperFactory = require('../utils/handlerFactory');
+const multer = require('multer');
+const sharp = require('sharp');
+
+const multerStorage = multer.memoryStorage(); // because we will use that buffer from memory for sharp lib
+
+const multerFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image')) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Not an image! Please upload only images.', 400), false);
+  }
+};
+
+const upload = multer({
+  storage: multerStorage,
+  fileFilter: multerFilter,
+});
+
+exports.uploadTourImages = upload.fields([
+  { name: 'imageCover', maxCount: 1 },
+  { name: 'images', maxCount: 3 },
+]);
+
+exports.resizeTourImages = catchAsync(async (req, res, next) => {
+  if (!req.files.imageCover || !req.files.images) return next();
+  console.log(req.files);
+
+  // 1) Cover image
+  req.body.imageCover = `tour-${req.params.id}-${Date.now()}-cover.jpeg`;
+  await sharp(req.files.imageCover[0].buffer)
+    .resize(2000, 1333)
+    .toFormat('jpeg')
+    .jpeg({ quality: 90 })
+    .toFile(`public/img/tours/${req.body.imageCover}`);
+
+  // 2) Images
+  req.body.images = [];
+  await Promise.all(
+    req.files.images.map(async (file, i) => {
+      const filename = `tour-${req.params.id}-${Date.now()}-${i + 1}.jpeg`;
+      await sharp(file.buffer)
+        .resize(2000, 1333)
+        .toFormat('jpeg')
+        .jpeg({ quality: 90 })
+        .toFile(`public/img/tours/${filename}`);
+      req.body.images.push(filename);
+    }),
+  );
+  next();
+})
 
 // making a middleware to set the query string for top 5 cheap tours (for alias route)
 exports.aliasTopTours = (req, res, next) => {
@@ -122,12 +172,13 @@ exports.getToursWithin = catchAsync(async (req, res, next) => {
 
   const radius = unit === 'mi' ? distance / 3963.2 : distance / 6378.1; // in radians
 
-  if (!lat || !lng) return next(new AppError('Please provide lat and lng', 400));
+  if (!lat || !lng)
+    return next(new AppError('Please provide lat and lng', 400));
 
-
-  const tours = await Tour.find({
-    startLocation: { $geoWithin: { $centerSphere: [[lng, lat], radius] } },
-  }) || []
+  const tours =
+    (await Tour.find({
+      startLocation: { $geoWithin: { $centerSphere: [[lng, lat], radius] } },
+    })) || [];
 
   res.status(200).json({
     status: 'success',
@@ -145,7 +196,8 @@ exports.getDistances = catchAsync(async (req, res, next) => {
 
   const multiplier = unit === 'mi' ? 0.000621371 : 0.001;
 
-  if (!lat || !lng) return next(new AppError('Please provide lat and lng', 400));
+  if (!lat || !lng)
+    return next(new AppError('Please provide lat and lng', 400));
 
   const distances = await Tour.aggregate([
     {
