@@ -10,13 +10,12 @@ const bookTour = async (tourId) => {
   try {
     // 1) Get checkout session from API
     const { data } = await axios.get(
-      `http://localhost:3000/api/v1/booking/checkout-session/${tourId}`,
+      `/api/v1/booking/checkout-session/${tourId}`,
     );
     // 2) Create checkout form + charge credit card
     // eslint-disable-next-line no-undef
     window.location.assign(data.session.url);
   } catch (err) {
-    console.log(err);
     showAlert('error', err);
   }
 };

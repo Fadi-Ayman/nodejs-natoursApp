@@ -8,7 +8,7 @@ const xss = require('xss-clean');
 const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
 const helmetConfig = require('./utils/helmetConfig');
-
+const compression = require('compression');
 
 const app = express();
 
@@ -84,6 +84,8 @@ app.use(
 
 // static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(compression()); // compress all the text sent to the client (html, css, js, json, etc..)
 
 // middleWare To Minuplate Request object and add to it requestTime
 app.use((req, res, next) => {

@@ -6,7 +6,7 @@ export const updateSettings = async(data,type) =>{
   try {
     const res = await axios({
       method: 'PATCH',
-      url: `http://localhost:3000/api/v1/users/${type === 'password' ? 'updatePassword' : 'updateMe'}`,
+      url: `/api/v1/users/${type === 'password' ? 'updatePassword' : 'updateMe'}`,
       data
     });
     if (res.data.status === 'success') {
@@ -17,7 +17,6 @@ export const updateSettings = async(data,type) =>{
       showAlert('error', res.message);
     }
   } catch (error) {
-    console.log(error);
     showAlert(
       'error',
       error?.response?.data?.message || error.message || 'Something went wrong',

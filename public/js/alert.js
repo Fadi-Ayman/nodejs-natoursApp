@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 
 export const hideAlert = () => {
   const el = document.querySelector('.alert');
